@@ -24,15 +24,15 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "",
+    "StreetFighters",
     /* First member's full name */
-    "",
+    "Syed Shareq Rabbani",
     /* First member's email address */
-    "",
+    "shareq.rabbani@mail.utoronto.ca",
     /* Second member's full name (leave blank if none) */
-    "",
+    "S M Nadir Hassan",
     /* Second member's email address (leave blank if none) */
-    ""
+    "nadir.hassan@mail.utoronto.ca"
 };
 
 /*************************************************************************
