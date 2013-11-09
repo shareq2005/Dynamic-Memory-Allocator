@@ -83,7 +83,6 @@ void* heap_listp = NULL;
 /* ptr to the beginning of the free list */
 void* free_listp = NULL;
 
-
 /**********************************************************
  * mm_init
  * Initialize the heap, including "allocation" of the
@@ -313,24 +312,27 @@ void *mm_malloc(size_t size)
 		place(free_listp, asize);
 	
 	///////////TEST		
-	void* free_blk_ptr=NULL;
+	void* free_blk_ptr=free_listp;
 	if(free_listp!=NULL){//if free_listp is not empty then extend the heap
 		printf("free list has something size of %d, and asize is %d, and size fields are %d \n",GET_SIZE(HDRP(free_listp)),size,asize);
-		if(GET_SIZE(HDRP(free_listp))>=asize)
-		{
-			printf("we found a free block of size %d\n",size);
-			free_blk_ptr = free_listp;
-			
-			//need to adjust the list
-			
-		}else{
-			printf("size mismatch\n");
-			while(GET_NEXT_FREE_BLK(free_listp)!=NULL)
-			{
-				printf("looping: should never see this\n");
-			}
-			
+		
+		while(GET_SIZE(HDRP(free_blk_ptr))!=0 && GET_SIZE(HDRP(free_blk_ptr))<asize){
+//		printf("empty");
+			free_blk_ptr = GET(NEXT_BLKP(free_blk_ptr));
 		}
+		
+		if(GET_SIZE(HDRP(free_blk_ptr))==0)//if next block is empty then increase heap
+		{
+			void* new_heap_ptr=NULL;
+			extendsize = MAX(asize, CHUNKSIZE);
+			if ((new_heap_ptr = extend_heap(extendsize/WSIZE)) == NULL)
+				return NULL;
+			place(new_heap_ptr, asize);
+			//PUT(new_heap_ptr,/***************NEED TO ADD HERE*********************/);
+			return new_heap_ptr;
+		}
+
+
 		printf("UNDER CONS\n");
 	//	if(GET_NEXT_FREE_BLK(free_listp)==NULL)
 
