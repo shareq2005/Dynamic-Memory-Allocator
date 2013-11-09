@@ -24,15 +24,15 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "",
+    "adsfas",
     /* First member's full name */
-    "",
+    "dafsds",
     /* First member's email address */
-    "",
+    "cvbxb",
     /* Second member's full name (leave blank if none) */
-    "",
+    "cxvbcvxb",
     /* Second member's email address (leave blank if none) */
-    ""
+    "ytjtyj"
 };
 
 /*************************************************************************
@@ -74,6 +74,8 @@ void remove_free_block(void *bp);
 #define LOCATION_PREV_FREE_BLKP(bp)	((char *)(bp))
 #define LOCATION_NEXT_FREE_BLKP(bp) ((char *)(bp) + WSIZE)
 
+#define GET_NEXT_FREE_BLK(bp) GET(LOCATION_NEXT_FREE_BLKP(bp)) 
+#define GET_PREV_FREE_BLK(bp) GET(LOCATION_PREV_FREE_BLKP(bp)) 
 
 void* heap_listp = NULL;
 
@@ -275,6 +277,7 @@ void mm_free(void *bp)
  **********************************************************/
 void *mm_malloc(size_t size)
 {
+
     size_t asize; /* adjusted block size */
     size_t extendsize; /* amount to extend heap if no fit */
     char * bp;
@@ -289,18 +292,28 @@ void *mm_malloc(size_t size)
     else
         asize = DSIZE * ((size + (DSIZE) + (DSIZE-1))/ DSIZE);
 
-    /* Search the free list for a fit */
+    /* Search the free list for a fit 
     if ((bp = find_fit(asize)) != NULL) {
         place(bp, asize);
         return bp;
-    }
+    }*/
+	free_listp=NULL;
+	if(free_listp!=NULL){//if free_listp is not empty then extend the heap
 
-    /* No fit found. Get more memory and place the block */
-    extendsize = MAX(asize, CHUNKSIZE);
-    if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
-        return NULL;
-    place(bp, asize);
-    return bp;
+		//if(free_listp->)
+
+
+	}else{
+	
+		/* No fit found. Get more memory and place the block */
+		extendsize = MAX(asize, CHUNKSIZE);
+		if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
+		    return NULL;
+		place(bp, asize);
+		return bp;
+ 
+    }
+    
 
 }
 
