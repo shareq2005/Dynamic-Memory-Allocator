@@ -64,7 +64,15 @@ team_t team = {
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
+/* Get the address of the previous and next free block */
+#define LOCATION_PREV_FREE_BLKP(bp)	((char *)(bp))
+#define LOCATION_NEXT_FREE_BLKP(bp) ((char *)(bp) + WSIZE)
+
+
 void* heap_listp = NULL;
+
+/* ptr to the beginning of the free list */
+void* free_listp = NULL;
 
 /**********************************************************
  * mm_init
@@ -99,7 +107,8 @@ void *coalesce(void *bp)
     size_t size = GET_SIZE(HDRP(bp));
 
     if (prev_alloc && next_alloc) {       /* Case 1 */
-        return bp;
+        add_to_free_list(bp);	//add to the free list
+    	return bp;
     }
 
     else if (prev_alloc && !next_alloc) { /* Case 2 */
@@ -123,6 +132,37 @@ void *coalesce(void *bp)
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size,0));
         return (PREV_BLKP(bp));
     }
+}
+
+/**********************************************************
+ * add_to_free_list
+ * adds the free block to the free list
+ **********************************************************/
+void add_to_free_list(void *bp)
+{
+	if(free_listp == NULL)
+	{
+		//add the free block to the free list which is NULL
+		free_listp = bp;
+	}
+	else
+	{
+		void *prev_free_block_head = free_listp;
+
+		//Make the free block as the head of your free list
+		free_listp = bp;
+
+		//Set the next block of the new head as the previous head
+		char* next_free_blk_addr = LOCATION_NEXT_FREE_BLKP(bp);
+		PUT(next_free_blk_addr,prev_free_block_head);
+
+		//Set the previous block of the new head as NULL
+		char* prev_free_blk_addr = LOCATION_PREV_FREE_BLKP(bp);
+		PUT(prev_free_blk_addr, NULL);
+
+		//Set the previous block of the previous head to the new head
+		PUT(prev_free_block_head,free_listp);
+	}
 }
 
 /**********************************************************
