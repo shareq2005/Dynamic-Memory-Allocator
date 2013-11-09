@@ -121,23 +121,30 @@ void *coalesce(void *bp)
 
     else if (prev_alloc && !next_alloc) { /* Case 2 */
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        remove_free_block(NEXT_BLKP(bp)); //remove the free block from the free list
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
+        add_to_free_list(bp);
         return (bp);
     }
 
     else if (!prev_alloc && next_alloc) { /* Case 3 */
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        remove_free_block(PREV_BLKP(bp));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        add_to_free_list(bp);
         return (PREV_BLKP(bp));
     }
 
     else {            /* Case 4 */
         size += GET_SIZE(HDRP(PREV_BLKP(bp)))  +
             GET_SIZE(FTRP(NEXT_BLKP(bp)))  ;
+        remove_free_block(PREV_BLKP(bp));
+        remove_free_block(NEXT_BLKP(bp));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size,0));
+        add_to_free_list(bp);
         return (PREV_BLKP(bp));
     }
 }
@@ -180,17 +187,15 @@ void add_to_free_list(void *bp)
  **********************************************************/
 void remove_free_block(void *bp)
 {
-	//get the pointers of the next and the previous blocks
-	char *prev_block = PREV_BLKP(bp);
-	char *next_block = NEXT_BLKP(bp);
+	//get the next and previous free block pointers
+	char *next_free_blk = GET_NEXT_FREE_BLK(bp);
+	char *prev_free_blk = GET_PREV_FREE_BLK(bp);
 
 	//set the next block of the previous block
-	//char *next_free_blk =
-	//char *prev_free_blk =
+	PUT(LOCATION_NEXT_FREE_BLKP(prev_free_blk),next_free_blk);
 
 	//set the previous block of the next block
-
-
+	PUT(LOCATION_PREV_FREE_BLKP(next_free_blk),prev_free_blk);
 }
 
 /**********************************************************
