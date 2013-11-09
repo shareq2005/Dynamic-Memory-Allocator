@@ -36,6 +36,12 @@ team_t team = {
 };
 
 /*************************************************************************
+ * Function Definitions
+*************************************************************************/
+void add_to_free_list(void *bp);
+void remove_free_block(void *bp);
+
+/*************************************************************************
  * Basic Constants and Macros
  * You are not required to use these macros but may find them helpful.
 *************************************************************************/
@@ -163,6 +169,26 @@ void add_to_free_list(void *bp)
 		//Set the previous block of the previous head to the new head
 		PUT(prev_free_block_head,free_listp);
 	}
+}
+
+/**********************************************************
+ * add_to_free_list
+ * Removes one free block (pointed by bp) from the list
+ * since it is being coalesced.
+ **********************************************************/
+void remove_free_block(void *bp)
+{
+	//get the pointers of the next and the previous blocks
+	char *prev_block = PREV_BLKP(bp);
+	char *next_block = NEXT_BLKP(bp);
+
+	//set the next block of the previous block
+	//char *next_free_blk =
+	//char *prev_free_blk =
+
+	//set the previous block of the next block
+
+
 }
 
 /**********************************************************
