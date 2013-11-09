@@ -24,25 +24,24 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "StreetFighters",
+    "",
     /* First member's full name */
-    "Syed Shareq Rabbani",
+    "",
     /* First member's email address */
-    "shareq.rabbani@mail.utoronto.ca",
+    "",
     /* Second member's full name (leave blank if none) */
-    "S M Nadir Hassan",
+    "",
     /* Second member's email address (leave blank if none) */
-    "nadir.hassan@mail.utoronto.ca"
+    ""
 };
 
 /*************************************************************************
  * Basic Constants and Macros
  * You are not required to use these macros but may find them helpful.
 *************************************************************************/
-#define WSIZE       sizeof(void *)         /* word size (bytes) */
+#define WSIZE       sizeof(void *)            /* word size (bytes) */
 #define DSIZE       (2 * WSIZE)            /* doubleword size (bytes) */
 #define CHUNKSIZE   (1<<7)      /* initial heap size (bytes) */
-#define OVERHEAD    DSIZE     /* overhead of header and footer (bytes) */
 
 #define MAX(x,y) ((x) > (y)?(x) :(y))
 
@@ -65,11 +64,6 @@ team_t team = {
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
-/* alignment */
-#define ALIGNMENT 16
-/* rounds up to the nearest multiple of ALIGNMENT */
-#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0xf)
-
 void* heap_listp = NULL;
 
 /**********************************************************
@@ -82,8 +76,8 @@ void* heap_listp = NULL;
    if ((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1)
          return -1;
      PUT(heap_listp, 0);                         // alignment padding
-     PUT(heap_listp + (1 * WSIZE), PACK(OVERHEAD, 1));   // prologue header
-     PUT(heap_listp + (2 * WSIZE), PACK(OVERHEAD, 1));   // prologue footer
+     PUT(heap_listp + (1 * WSIZE), PACK(DSIZE, 1));   // prologue header
+     PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1));   // prologue footer
      PUT(heap_listp + (3 * WSIZE), PACK(0, 1));    // epilogue header
      heap_listp += DSIZE;
 
@@ -225,9 +219,9 @@ void *mm_malloc(size_t size)
 
     /* Adjust block size to include overhead and alignment reqs. */
     if (size <= DSIZE)
-        asize = DSIZE + OVERHEAD;
+        asize = 2 * DSIZE;
     else
-        asize = DSIZE * ((size + (OVERHEAD) + (DSIZE-1))/ DSIZE);
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1))/ DSIZE);
 
     /* Search the free list for a fit */
     if ((bp = find_fit(asize)) != NULL) {
@@ -251,12 +245,11 @@ void *mm_malloc(size_t size)
 void *mm_realloc(void *ptr, size_t size)
 {
     /* If size == 0 then this is just free, and we return NULL. */
-    if (size == 0){
+    if(size == 0){
       mm_free(ptr);
       return NULL;
     }
-
-    /* If old ptr is NULL, then this is just malloc. */
+    /* If oldptr is NULL, then this is just malloc. */
     if (ptr == NULL)
       return (mm_malloc(size));
 
