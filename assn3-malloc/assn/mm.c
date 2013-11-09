@@ -77,10 +77,12 @@ void remove_free_block(void *bp);
 #define GET_NEXT_FREE_BLK(bp) GET(LOCATION_NEXT_FREE_BLKP(bp)) 
 #define GET_PREV_FREE_BLK(bp) GET(LOCATION_PREV_FREE_BLKP(bp)) 
 
+
 void* heap_listp = NULL;
 
 /* ptr to the beginning of the free list */
 void* free_listp = NULL;
+
 
 /**********************************************************
  * mm_init
@@ -302,12 +304,37 @@ void *mm_malloc(size_t size)
         place(bp, asize);
         return bp;
     }*/
-	free_listp=NULL;
+//	free_listp=;
+    ///////////TEST
+	   	extendsize = MAX(asize, CHUNKSIZE);
+    	printf("extendsize is %d \n",extendsize);
+		if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
+		    return NULL;
+		place(free_listp, asize);
+	
+	///////////TEST		
+	void* free_blk_ptr=NULL;
 	if(free_listp!=NULL){//if free_listp is not empty then extend the heap
+		printf("free list has something size of %d, and asize is %d, and size fields are %d \n",GET_SIZE(HDRP(free_listp)),size,asize);
+		if(GET_SIZE(HDRP(free_listp))>=asize)
+		{
+			printf("we found a free block of size %d\n",size);
+			free_blk_ptr = free_listp;
+			
+			//need to adjust the list
+			
+		}else{
+			printf("size mismatch\n");
+			while(GET_NEXT_FREE_BLK(free_listp)!=NULL)
+			{
+				printf("looping: should never see this\n");
+			}
+			
+		}
+		printf("UNDER CONS\n");
+	//	if(GET_NEXT_FREE_BLK(free_listp)==NULL)
 
-		//if(free_listp->)
-
-
+		return free_blk_ptr;
 	}else{
 	
 		/* No fit found. Get more memory and place the block */
