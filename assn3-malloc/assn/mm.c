@@ -40,6 +40,7 @@ team_t team = {
 *************************************************************************/
 void add_to_free_list(void *bp);
 void remove_free_block(void *bp);
+void print_fl();
 
 /*************************************************************************
  * Basic Constants and Macros
@@ -208,6 +209,9 @@ void remove_free_block(void *bp)
 		{
 			//set the head of the free list to the next block
 			free_listp = GET_NEXT_FREE_BLK(bp);
+
+			//set the previous ptr of the new head to 0 (nil/nothing)
+			PUT(LOCATION_PREV_FREE_BLKP(free_listp),0);
 		}
 	}
 	else
@@ -219,8 +223,12 @@ void remove_free_block(void *bp)
 		}
 		else
 		{
+			printf("start 1\n");
+
 			//set the next block of the previous block
 			PUT(LOCATION_NEXT_FREE_BLKP(prev_free_blk),next_free_blk);
+
+			printf("end 2\n");
 
 			//set the previous block of the next block
 			PUT(LOCATION_PREV_FREE_BLKP(next_free_blk),prev_free_blk);
@@ -299,6 +307,12 @@ void mm_free(void *bp)
     PUT(HDRP(bp), PACK(size,0));
     PUT(FTRP(bp), PACK(size,0));
     coalesce(bp);
+
+    //print the previous and the next pointers
+    printf("Get prev - %d\n",GET_PREV_FREE_BLK(bp));
+    printf("Get next - %d\n",GET_NEXT_FREE_BLK(bp));
+    printf("size of block is %d\n",GET_SIZE(HDRP(bp)));
+
 }
 
 
@@ -312,7 +326,6 @@ void mm_free(void *bp)
  **********************************************************/
 void *mm_malloc(size_t size)
 {
-
     size_t asize; /* adjusted block size */
     size_t extendsize; /* amount to extend heap if no fit */
     char * bp;
@@ -378,6 +391,20 @@ void *mm_malloc(size_t size)
     }
 }
 
+void print_fl()
+{
+	void* new_heap_ptr = free_listp;
+
+
+	while((GET_NEXT_FREE_BLK(new_heap_ptr)!=0))
+	{
+		//printf("[%d][%d][%d]\n",GET_SIZE(HDRP(new_heap_ptr)),GET_PREV_FREE_BLK(new_heap_ptr),GET_NEXT_FREE_BLK(new_heap_ptr));
+		new_heap_ptr = GET_NEXT_FREE_BLK(new_heap_ptr);
+	}
+
+
+}
+
 /**********************************************************
  * mm_realloc
  * Implemented simply in terms of mm_malloc and mm_free
@@ -416,5 +443,7 @@ void *mm_realloc(void *ptr, size_t size)
  * Return nonzero if the heap is consistant.
  *********************************************************/
 int mm_check(void){
-  return 1;
+	print_fl();
+
+	return 1;
 }
