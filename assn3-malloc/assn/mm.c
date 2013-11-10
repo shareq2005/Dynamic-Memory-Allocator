@@ -24,15 +24,15 @@
  ********************************************************/
 team_t team = {
     /* Team name */
-    "adsfas",
+    "StreetFighters",
     /* First member's full name */
-    "dafsds",
+    "Syed Shareq Rabbani",
     /* First member's email address */
-    "cvbxb",
+    "shareq.rabbani@mail.utoronto.ca",
     /* Second member's full name (leave blank if none) */
-    "cxvbcvxb",
+    "S M Nadir Hassan",
     /* Second member's email address (leave blank if none) */
-    "ytjtyj"
+    "nadir.hassan@mail.utoronto.ca"
 };
 
 /*************************************************************************
@@ -74,8 +74,8 @@ void remove_free_block(void *bp);
 #define LOCATION_PREV_FREE_BLKP(bp)	((char *)(bp))
 #define LOCATION_NEXT_FREE_BLKP(bp) ((char *)(bp) + WSIZE)
 
-#define GET_NEXT_FREE_BLK(bp) GET(LOCATION_NEXT_FREE_BLKP(bp)) 
-#define GET_PREV_FREE_BLK(bp) GET(LOCATION_PREV_FREE_BLKP(bp)) 
+#define GET_NEXT_FREE_BLK(bp) GET((uintptr_t)(LOCATION_NEXT_FREE_BLKP(bp)))
+#define GET_PREV_FREE_BLK(bp) GET((uintptr_t)(LOCATION_PREV_FREE_BLKP(bp)))
 
 
 void* heap_listp = NULL;
@@ -160,6 +160,13 @@ void add_to_free_list(void *bp)
 	{
 		//add the free block to the free list which is NULL
 		free_listp = bp;
+
+		//set the previous as 0 or (null/nothing)
+		PUT(LOCATION_PREV_FREE_BLKP(bp),0);
+
+		//set the next free block as 0 or (null/nothing)
+		PUT(LOCATION_NEXT_FREE_BLKP(bp),0);
+
 	}
 	else
 	{
@@ -169,15 +176,13 @@ void add_to_free_list(void *bp)
 		free_listp = bp;
 
 		//Set the next block of the new head as the previous head
-		char* next_free_blk_addr = LOCATION_NEXT_FREE_BLKP(bp);
-		PUT(next_free_blk_addr,prev_free_block_head);
+		PUT(LOCATION_NEXT_FREE_BLKP(bp),(uintptr_t)prev_free_block_head);
 
 		//Set the previous block of the new head as NULL
-		char* prev_free_blk_addr = LOCATION_PREV_FREE_BLKP(bp);
-		PUT(prev_free_blk_addr, NULL);
+		PUT(LOCATION_PREV_FREE_BLKP(bp), 0);
 
 		//Set the previous block of the previous head to the new head
-		PUT(prev_free_block_head,free_listp);
+		PUT(prev_free_block_head,(uintptr_t)free_listp);
 	}
 }
 
@@ -192,11 +197,35 @@ void remove_free_block(void *bp)
 	char *next_free_blk = GET_NEXT_FREE_BLK(bp);
 	char *prev_free_blk = GET_PREV_FREE_BLK(bp);
 
-	//set the next block of the previous block
-	PUT(LOCATION_NEXT_FREE_BLKP(prev_free_blk),next_free_blk);
+	if(free_listp == bp)	//if free block is head of the free list
+	{
+		//check if there was only one block in the free list
+		if(GET_NEXT_FREE_BLK(bp) == 0)
+		{
+			free_listp = NULL;
+		}
+		else
+		{
+			//set the head of the free list to the next block
+			free_listp = GET_NEXT_FREE_BLK(bp);
+		}
+	}
+	else
+	{
+		if(GET_NEXT_FREE_BLK(bp) == 0)
+		{
+			//set the next block of the previous block
+			PUT(LOCATION_NEXT_FREE_BLKP(prev_free_blk),0);
+		}
+		else
+		{
+			//set the next block of the previous block
+			PUT(LOCATION_NEXT_FREE_BLKP(prev_free_blk),next_free_blk);
 
-	//set the previous block of the next block
-	PUT(LOCATION_PREV_FREE_BLKP(next_free_blk),prev_free_blk);
+			//set the previous block of the next block
+			PUT(LOCATION_PREV_FREE_BLKP(next_free_blk),prev_free_blk);
+		}
+	}
 }
 
 /**********************************************************
@@ -298,57 +327,55 @@ void *mm_malloc(size_t size)
     else
         asize = DSIZE * ((size + (DSIZE) + (DSIZE-1))/ DSIZE);
 
-    /* Search the free list for a fit 
-    if ((bp = find_fit(asize)) != NULL) {
-        place(bp, asize);
-        return bp;
-    }*/
-//	free_listp=;
-    ///////////TEST
-	   	extendsize = MAX(asize, CHUNKSIZE);
-    	printf("extendsize is %d \n",extendsize);
-		if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
-		    return NULL;
-		place(free_listp, asize);
-	
-	///////////TEST		
+
 	void* free_blk_ptr=free_listp;
-	if(free_listp!=NULL){//if free_listp is not empty then extend the heap
-		printf("free list has something size of %d, and asize is %d, and size fields are %d \n",GET_SIZE(HDRP(free_listp)),size,asize);
+	
+	if(free_listp != NULL)
+	{
+		//printf("free list has something size of %d, and asize is %d, and size fields are %d \n",GET_SIZE(HDRP(free_listp)),size,asize);
 		
-		while(GET_SIZE(HDRP(free_blk_ptr))!=0 && GET_SIZE(HDRP(free_blk_ptr))<asize){
-//		printf("empty");
-			free_blk_ptr = GET(NEXT_BLKP(free_blk_ptr));
+		//traverse the free list and find a free block that is big enough to hold asize block
+		while((GET_NEXT_FREE_BLK(free_blk_ptr)!=0) && (GET_SIZE(HDRP(free_blk_ptr)) < asize))
+		{
+			free_blk_ptr = GET_NEXT_FREE_BLK(free_blk_ptr);
 		}
 		
-		if(GET_SIZE(HDRP(free_blk_ptr))==0)//if next block is empty then increase heap
+		//if no free block was found
+		if((GET_NEXT_FREE_BLK(free_blk_ptr))==0)
 		{
-			void* new_heap_ptr=NULL;
+			void* new_heap_ptr = NULL;
 			extendsize = MAX(asize, CHUNKSIZE);
+
 			if ((new_heap_ptr = extend_heap(extendsize/WSIZE)) == NULL)
 				return NULL;
+
+			//take out the allocated block from the free list
+			remove_free_block(new_heap_ptr);
+
 			place(new_heap_ptr, asize);
-			//PUT(new_heap_ptr,/***************NEED TO ADD HERE*********************/);
+
 			return new_heap_ptr;
 		}
 
+		//take out the allocated block from the free list
+		remove_free_block(free_blk_ptr);
 
-		printf("UNDER CONS\n");
-	//	if(GET_NEXT_FREE_BLK(free_listp)==NULL)
-
+		//if it reaches this part it means that we have found a block the right size
 		return free_blk_ptr;
-	}else{
-	
+	}
+	else
+	{
 		/* No fit found. Get more memory and place the block */
 		extendsize = MAX(asize, CHUNKSIZE);
 		if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
 		    return NULL;
+
+		//take out the allocated block from the free list
+		remove_free_block(bp);
+
 		place(bp, asize);
 		return bp;
- 
     }
-    
-
 }
 
 /**********************************************************
