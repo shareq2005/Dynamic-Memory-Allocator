@@ -153,7 +153,7 @@ void *coalesce(void *bp)
 		remove_free_block(PREV_BLKP(bp));
 		PUT(FTRP(bp), PACK(size, 0));
 		PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-		add_to_free_list(bp);
+		add_to_free_list(PREV_BLKP(bp));
 		printf(">>left side is free %ld\n",size);
 		print_ptr(PREV_BLKP(bp));
 		print_ptr(bp);
@@ -167,7 +167,7 @@ void *coalesce(void *bp)
 		remove_free_block(NEXT_BLKP(bp));
 		PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
 		PUT(FTRP(NEXT_BLKP(bp)), PACK(size,0));
-		add_to_free_list(bp);
+		add_to_free_list(PREV_BLKP(bp));
 		print_ptr(bp);
 
 		return (PREV_BLKP(bp));
