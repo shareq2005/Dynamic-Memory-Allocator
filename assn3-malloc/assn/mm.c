@@ -84,9 +84,8 @@ void * find_segregated_best_fit(size_t asize);
 
 void* heap_listp = NULL;
 
-/* ptr to the beginning of the free list */
-void* free_listp = NULL;
-void* segregated_list[30];
+/* ptr to the segregated list */
+void* segregated_list[31];
 /**********************************************************
  * mm_init
  * Initialize the heap, including "allocation" of the
@@ -102,11 +101,10 @@ int mm_init(void)
 	PUT(heap_listp + (2 * WSIZE), PACK(DSIZE, 1));   // prologue footer
 	PUT(heap_listp + (3 * WSIZE), PACK(0, 1));    // epilogue header
 	heap_listp += DSIZE;
-	free_listp = NULL;
 
 	//initialize your segregated lists
 	int i;
-	for(i = 0; i < 30; i++)
+	for(i = 0; i < 31; i++)
 	{
 		segregated_list[i] = NULL;
 	}
@@ -394,7 +392,7 @@ void * find_segregated_best_fit(size_t asize)
 
 	//traverse through each segregated list
 	int i;
-	for(i = segregated_index; i < 30; i++)
+	for(i = segregated_index; i < 31; i++)
 	{
 		//free segregated list
 		void * free_segregated_list = segregated_list[i];
@@ -508,22 +506,6 @@ void *mm_malloc(size_t size)
     place(bp, asize);
     return bp;
 
-}
-
-void print_fl()
-{
-	void* new_heap_ptr = free_listp;
-	if(new_heap_ptr!=NULL){
-		printf("start\n");
-		while((GET_NEXT_FREE_BLK(new_heap_ptr)!=0))
-		{
-			printf("[%ld][%ld][%ld]\n",GET_SIZE(HDRP(new_heap_ptr)),GET_PREV_FREE_BLK(new_heap_ptr),GET_NEXT_FREE_BLK(new_heap_ptr));
-
-			new_heap_ptr = GET_NEXT_FREE_BLK(new_heap_ptr);
-		}
-		printf("[%ld][%ld][%ld]\n",GET_SIZE(HDRP(new_heap_ptr)),GET_PREV_FREE_BLK(new_heap_ptr),GET_NEXT_FREE_BLK(new_heap_ptr));
-		printf("end\n");
-	}
 }
 
 /**********************************************************
