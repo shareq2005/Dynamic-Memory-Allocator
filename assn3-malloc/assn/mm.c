@@ -160,8 +160,10 @@ void *coalesce(void *bp)
 		return (PREV_BLKP(bp));
 	}
 	else {            /* Case 4 */
-		printf("case 4\n");
+		//printf("case 4 - size 1 = %d - size 2 = %d\n",GET_SIZE(HDRP(PREV_BLKP(bp))),GET_SIZE(FTRP(NEXT_BLKP(bp))));
 		size += GET_SIZE(HDRP(PREV_BLKP(bp)))+GET_SIZE(FTRP(NEXT_BLKP(bp)));
+		//printf("case 4 - prev blk ptr %p\n",PREV_BLKP(bp));
+		//printf("case 4 - next blk ptr %p\n",NEXT_BLKP(bp));
 		remove_free_block(PREV_BLKP(bp));
 		remove_free_block(NEXT_BLKP(bp));
 		PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
@@ -272,27 +274,10 @@ void *extend_heap(size_t words)
 	PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));        // new epilogue header
 
 	/* Coalesce if the previous block was free */
-	return coalesce(bp);
-}
-
-void *extend_heap2(size_t words)
-{
-	char *bp;
-	size_t size;
-
-	/* Allocate an even number of words to maintain alignments */
-	size = (words % 2) ? (words+1) * WSIZE : words * WSIZE;
-	if ( (bp = mem_sbrk(size)) == (void *)-1 )
-		return NULL;
-
-	/* Initialize free block header/footer and the epilogue header */
-	PUT(HDRP(bp), PACK(size, 0));                // free block header
-	PUT(FTRP(bp), PACK(size, 0));                // free block footer
-	PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));        // new epilogue header
-
-	/* Coalesce if the previous block was free */
+	//return coalesce(bp);
 	return bp;
 }
+
 
 /**********************************************************
  * find_fit
@@ -340,8 +325,31 @@ void place(void* bp, size_t asize)
 	/* Get the current block size */
 	size_t bsize = GET_SIZE(HDRP(bp));
 
-	PUT(HDRP(bp), PACK(bsize, 1));
-	PUT(FTRP(bp), PACK(bsize, 1));
+	/* size 32 is the minimum possible chunk to hold some data*/
+	if((bsize-asize) >= 32)	//check if splitting is possible
+	{
+		/* first block - which will be allocated*/
+		//header
+		PUT(HDRP(bp),PACK(asize,1));
+
+		//footer
+		PUT(FTRP(bp),PACK(asize,1));
+
+		/* second block - which will be freed*/
+		//header
+		PUT((bp+asize-WSIZE),PACK(bsize-asize,0));
+
+		//footer
+		PUT(FTRP(bp+asize),PACK(bsize-asize,0));
+
+		//add the second block to the free list
+		add_to_free_list(bp+asize);
+	}
+	else	//if splitting is not possible
+	{
+		PUT(HDRP(bp), PACK(bsize, 1));
+		PUT(FTRP(bp), PACK(bsize, 1));
+	}
 }
 
 /**********************************************************
@@ -364,7 +372,7 @@ void mm_free(void *bp)
 	//printf("FROM MM_FREE\n");
 	coalesce(bp);
 
-	//print_fl();
+	print_fl();
 }
 
 /**********************************************************
@@ -394,16 +402,18 @@ void *mm_malloc(size_t size)
 
     /* Search the free list for a fit */
     if ((bp = find_fit(asize)) != NULL) {
-
+    	//print_fl();
     	printf("free size found, bp is %p\n",bp);
+
+    	//remove
     	remove_free_block(bp);
-        place(bp, asize);
+    	place(bp, asize);
         return bp;
     };
 
     /* No fit found. Get more memory and place the block */
     extendsize = MAX(asize, CHUNKSIZE);
-    if ((bp = extend_heap2(extendsize/WSIZE)) == NULL)
+    if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
     {
         return NULL;
     }
