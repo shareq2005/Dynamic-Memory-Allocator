@@ -420,11 +420,28 @@ void place(void* bp, size_t asize)
 {
 	/* Get the current block size */
 	size_t bsize = GET_SIZE(HDRP(bp));
-
-	PUT(HDRP(bp), PACK(bsize, 1));
-	PUT(FTRP(bp), PACK(bsize, 1));
+	/* size 32 is the minimum possible chunk to hold some data*/
+	if((bsize-asize) >= 32)	//check if splitting is possible
+	{
+		/* first block - which will be allocated*/
+		//header
+		PUT(HDRP(bp),PACK(asize,1));
+		//footer
+		PUT(FTRP(bp),PACK(asize,1));
+		/* second block - which will be freed*/
+		//header
+		PUT((bp+asize-WSIZE),PACK(bsize-asize,0));
+		//footer
+		PUT(FTRP(bp+asize),PACK(bsize-asize,0));
+		//add the second block to the free list
+		add_to_free_list(bp+asize);
+	}
+	else	//if splitting is not possible
+	{
+		PUT(HDRP(bp), PACK(bsize, 1));
+		PUT(FTRP(bp), PACK(bsize, 1));
+	}
 }
-
 /**********************************************************
  * mm_free
  * Free the block and coalesce with neighbouring blocks
