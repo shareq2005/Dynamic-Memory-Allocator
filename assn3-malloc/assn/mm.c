@@ -41,11 +41,9 @@ team_t team = {
 void add_to_free_list(void *bp);
 void remove_free_block(void *bp);
 void print_fl();
-void *extend_heap(size_t words);
 void *get_segregated_list_ptr(size_t size);
 int get_segregated_index(size_t size);
 void * find_segregated_best_fit(size_t asize);
-void * find_first_fit(void *free_list_index);
 
 /*************************************************************************
  * Basic Constants and Macros
@@ -80,17 +78,15 @@ void * find_first_fit(void *free_list_index);
 #define LOCATION_PREV_FREE_BLKP(bp)	((char *)(bp))
 #define LOCATION_NEXT_FREE_BLKP(bp) ((char *)(bp) + WSIZE)
 
-#define GET_NEXT_FREE_BLK(bp) GET((LOCATION_NEXT_FREE_BLKP(bp)))
-#define GET_PREV_FREE_BLK(bp) GET((LOCATION_PREV_FREE_BLKP(bp)))
+#define GET_NEXT_FREE_BLK(bp) GET((uintptr_t)(LOCATION_NEXT_FREE_BLKP(bp)))
+#define GET_PREV_FREE_BLK(bp) GET((uintptr_t)(LOCATION_PREV_FREE_BLKP(bp)))
 
 
 void* heap_listp = NULL;
 
 /* ptr to the beginning of the free list */
 void* free_listp = NULL;
-
-/* ptr pointing to the segregated list */
-void* segregated_list_ptr = NULL;
+void* segregated_list[30];
 /**********************************************************
  * mm_init
  * Initialize the heap, including "allocation" of the
@@ -108,23 +104,12 @@ int mm_init(void)
 	heap_listp += DSIZE;
 	free_listp = NULL;
 
-
-	//increase heap size for storing the head pointers
-	segregated_list_ptr = mm_malloc(136);
-	printf("segregate list ptr is at %p\n",segregated_list_ptr);
-	printf("heap list ptr is at %p\n",heap_listp);
-
-	printf("get alloc segregated list block is %d\n", GET_ALLOC(HDRP(segregated_list_ptr)));
-	
-
-	//set the head pointers of the segregated list to 0 (NULL)
+	//initialize your segregated lists
 	int i;
-	for(i = 0; i < 136; i++)
+	for(i = 0; i < 30; i++)
 	{
-		PUT(segregated_list_ptr+(i*WSIZE),0);
+		segregated_list[i] = NULL;
 	}
-
-	printf("get alloc segregated list block is %d\n", GET_ALLOC(HDRP(segregated_list_ptr)));
 
 	return 0;
 }
@@ -150,12 +135,6 @@ void *coalesce(void *bp)
 {
 	printf("IN COALESCE\n");
 	printf("coalescing block ptr %p\n",bp);
-	printf("size of prev blk hdr is %d\n",GET_SIZE(HDRP(PREV_BLKP(bp))));
-	printf("size of prev blk ftr is %d\n",GET_SIZE(FTRP(PREV_BLKP(bp))));
-	
-	printf("next blk is %p\n",NEXT_BLKP(bp));
-	printf("prev blk is %p\n",PREV_BLKP(bp));
-
 	size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
 	size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
 	size_t size = GET_SIZE(HDRP(bp));
@@ -174,7 +153,7 @@ void *coalesce(void *bp)
 
 		remove_free_block(NEXT_BLKP(bp)); //remove the free block from the free list
 		PUT(HDRP(bp), PACK(size, 0));
-        PUT(FTRP(bp), PACK(size, 0));
+		PUT(FTRP(bp), PACK(size, 0));
 		add_to_free_list(bp);
 		return (bp);
 	}
@@ -191,10 +170,8 @@ void *coalesce(void *bp)
 		return (PREV_BLKP(bp));
 	}
 	else {            /* Case 4 */
-		//printf("case 4 - size 1 = %d - size 2 = %d\n",GET_SIZE(HDRP(PREV_BLKP(bp))),GET_SIZE(FTRP(NEXT_BLKP(bp))));
+		printf("case 4\n");
 		size += GET_SIZE(HDRP(PREV_BLKP(bp)))+GET_SIZE(FTRP(NEXT_BLKP(bp)));
-		//printf("case 4 - prev blk ptr %p\n",PREV_BLKP(bp));
-		//printf("case 4 - next blk ptr %p\n",NEXT_BLKP(bp));
 		remove_free_block(PREV_BLKP(bp));
 		remove_free_block(NEXT_BLKP(bp));
 		PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
@@ -206,7 +183,6 @@ void *coalesce(void *bp)
 	}
 }
 
-
 /**********************************************************
  * get_segregated_list_ptr 
  * calculates the address of the appropriate segeregated 
@@ -217,7 +193,11 @@ void *get_segregated_list_ptr(size_t size)
 	void *bp;
 
 	//get pointer of the appropriate segregated list
-	bp = segregated_list_ptr + get_segregated_index(size);
+	int index;
+	index = get_segregated_index(size);
+
+	//get the ptr of the segregated list
+	bp = segregated_list[index];
 
 	return bp;
 }
@@ -229,25 +209,31 @@ void *get_segregated_list_ptr(size_t size)
  **********************************************************/
 int get_segregated_index(size_t size)
 {
+	int index;
 	//calculate the index of the appropriate segregated list
-	if(size < 128)
-		return (WSIZE*size);
+	if(size <= 128)
+	{
+		index = (size/16) - 1;
+		return index;
+	}
 	else if (size < 256)	//max block size 
-		return (WSIZE*128);
+		return 8;
 	else if (size < 512)	//max block size 
-		return (WSIZE*128) + (1*WSIZE);
+		return 9;
 	else if (size < 1024)	//max block size 
-		return (WSIZE*128) + (2*WSIZE);
+		return 10;
 	else if (size < 2048)	//max block size 
-		return (WSIZE*128) + (3*WSIZE);
+		return 11;
 	else if (size < 4096)	//max block size 
-		return (WSIZE*128) + (4*WSIZE);
+		return 12;
 	else if (size < 8192)	//max block size 
-		return (WSIZE*128) + (5*WSIZE);
+		return 13;
 	else	//for blocks of larger sizes
-		return (WSIZE*128) + (6*WSIZE);
+		return 14;
 
 }
+
+
 /**********************************************************
  * add_to_free_list
  * adds the free block to the free list
@@ -259,14 +245,14 @@ void add_to_free_list(void *bp)
 
 	//get the size of the free block
 	size_t size = GET(HDRP(bp));
-	free_listp = get_segregated_list_ptr(size);
+	
+	int i = get_segregated_index(size);
 
 	//print_ptr(bp);
-	if(GET(free_listp) == 0)
+	if(segregated_list[i] == NULL)
 	{
 		//add the free block to the free list which is NULL
-		//free_listp = bp;
-		PUT(free_listp,bp);
+		segregated_list[i] = bp;
 
 		//set the previous as 0 or (null/nothing)
 		PUT(LOCATION_PREV_FREE_BLKP(bp),0);
@@ -278,16 +264,15 @@ void add_to_free_list(void *bp)
 	else
 	{
 		//Set the next block of the new head as the previous head
-		PUT(LOCATION_NEXT_FREE_BLKP(bp),free_listp);
+		PUT(LOCATION_NEXT_FREE_BLKP(bp),segregated_list[i]);
 
 		//Set the previous block of the new head as NULL
 		PUT(LOCATION_PREV_FREE_BLKP(bp), 0);
 
 		//Set the previous block of the previous head to the new head
-		PUT(LOCATION_PREV_FREE_BLKP(free_listp),bp);
+		PUT(LOCATION_PREV_FREE_BLKP(segregated_list[i]),bp);
 
-		//free_listp = bp;
-		PUT(free_listp,bp);
+		segregated_list[i] = bp;
 	}
 }
 
@@ -303,12 +288,11 @@ void remove_free_block(void *bp)
 	printf("next free blk is %p\n",GET_NEXT_FREE_BLK(bp));
 
 	size_t size = GET_SIZE(HDRP(bp));	//get the size of the free block
-	free_listp = get_segregated_list_ptr(size);
+	int i = get_segregated_index(size);
 
 	if(!GET_PREV_FREE_BLK(bp) && !GET_NEXT_FREE_BLK(bp))	// case 1 - just one block in the free list
 	{
-		//free_listp = NULL;
-		PUT(free_listp,0);
+		segregated_list[i] = NULL;
 	}
 	else if(!GET_PREV_FREE_BLK(bp) && GET_NEXT_FREE_BLK(bp))// case 2 - removing the head
 	{
@@ -318,8 +302,7 @@ void remove_free_block(void *bp)
 		PUT(LOCATION_PREV_FREE_BLKP(GET_NEXT_FREE_BLK(bp)),0);
 
 		//set the head of the free list to the next block
-		//free_listp = GET_NEXT_FREE_BLK(bp);
-		PUT(free_listp,GET_NEXT_FREE_BLK(bp));
+		segregated_list[i] = GET_NEXT_FREE_BLK(bp);
 	}
 	else if(GET_PREV_FREE_BLK(bp) && !GET_NEXT_FREE_BLK(bp))// case 3 - removing the last node in list
 	{
@@ -358,10 +341,8 @@ void *extend_heap(size_t words)
 	PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));        // new epilogue header
 
 	/* Coalesce if the previous block was free */
-	//return coalesce(bp);
 	return bp;
 }
-
 
 /**********************************************************
  * find_fit
@@ -369,7 +350,7 @@ void *extend_heap(size_t words)
  * Return NULL if no free blocks can handle that size
  * Assumed that asize is aligned	
  **********************************************************/
-void * find_fit(size_t asize)
+void * find_fit(size_t asize, void * free_listp)
 {
 	void *bp;
 
@@ -408,46 +389,27 @@ void * find_fit(size_t asize)
  **********************************************************/
 void * find_segregated_best_fit(size_t asize)
 {
-	//get the segregated index
+		//get the segregated index
 	int segregated_index = get_segregated_index(asize);
 
 	//traverse through each segregated list
 	int i;
-	for(i = segregated_index; i < 136; i++)
+	for(i = segregated_index; i < 30; i++)
 	{
-		//get one segregated list
-		void *bp;
-		bp = segregated_list_ptr + segregated_index;	
+		//free segregated list
+		void * free_segregated_list = segregated_list[i];
 
 		//get one free blk
-		void * free_blk = find_first_fit(bp);
+		void * free_blk = find_fit(asize,free_segregated_list);
 
-		//return if free block found
 		if(free_blk != NULL)
 			return free_blk;
-		else
+		else	
 			continue;
 	}
 
 	//if no free blk is found
 	return NULL;
-}
-
-/**********************************************************
- * find_first_fit
- * Traverse the free list, if a free block is found then 
- * return it
- * Return NULL if no free blocks are found
- **********************************************************/
-void * find_first_fit(void *free_list_index)
-{
-	//check if your free list is empty
-	if(GET(free_list_index) == 0)
-		return NULL;
-
-	//return the first element in the list
-	void *bp = GET(free_list_index);
-	return bp;
 }
 
 /**********************************************************
@@ -459,33 +421,8 @@ void place(void* bp, size_t asize)
 	/* Get the current block size */
 	size_t bsize = GET_SIZE(HDRP(bp));
 
-	/* size 32 is the minimum possible chunk to hold some data*/
-	if((bsize-asize) >= 32)	//check if splitting is possible
-	{
-		/* first block - which will be allocated*/
-		//header
-		PUT(HDRP(bp),PACK(asize,1));
-
-		//footer
-		PUT(FTRP(bp),PACK(asize,1));
-
-		/* second block - which will be freed*/
-		//header
-		PUT((bp+asize-WSIZE),PACK(bsize-asize,0));
-
-		//footer
-		PUT(FTRP(bp+asize),PACK(bsize-asize,0));
-
-		//add the second block to the free list
-		add_to_free_list(bp+asize);
-	}
-	else	//if splitting is not possible
-	{
-		printf("header bp is %p\n",HDRP(bp));
-		printf("footer bp is %p\n",FTRP(bp));
-		PUT(HDRP(bp), PACK(bsize, 1));
-		PUT(FTRP(bp), PACK(bsize, 1));
-	}
+	PUT(HDRP(bp), PACK(bsize, 1));
+	PUT(FTRP(bp), PACK(bsize, 1));
 }
 
 /**********************************************************
@@ -508,7 +445,7 @@ void mm_free(void *bp)
 	//printf("FROM MM_FREE\n");
 	coalesce(bp);
 
-	print_fl();
+	//print_fl();
 }
 
 /**********************************************************
@@ -538,12 +475,10 @@ void *mm_malloc(size_t size)
 
     /* Search the free list for a fit */
     if ((bp = find_segregated_best_fit(asize)) != NULL) {
-    	//print_fl();
-    	printf("free size found, bp is %p\n",bp);
 
-    	//remove
+    	printf("free size found, bp is %p\n",bp);
     	remove_free_block(bp);
-    	place(bp, asize);
+        place(bp, asize);
         return bp;
     };
 
@@ -551,17 +486,9 @@ void *mm_malloc(size_t size)
     extendsize = MAX(asize, CHUNKSIZE);
     if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
     {
-        printf("OUT OF MEMOROY\n");
         return NULL;
     }
-
-
     place(bp, asize);
-    if(segregated_list_ptr != NULL)
-    //printf("segregated_list_ptr alloc is %d\n",GET_ALLOC(HDRP(segregated_list_ptr)));
-	printf("prev blk is %p\n",PREV_BLKP(bp));
-
-    printf("mallocked block is %p\n",bp);
     return bp;
 
 }
