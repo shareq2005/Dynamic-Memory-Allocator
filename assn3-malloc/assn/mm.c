@@ -85,7 +85,8 @@ void * find_segregated_best_fit(size_t asize);
 void* heap_listp = NULL;
 
 /* ptr to the segregated list */
-void* segregated_list[31];
+#define FREE_SIZE_BUCKETS 31
+void* segregated_list[FREE_SIZE_BUCKETS];
 /**********************************************************
  * mm_init
  * Initialize the heap, including "allocation" of the
@@ -118,7 +119,7 @@ void* temp[31];
 	if(segregated_list!=NULL){
 		int i=0;
 		printf("Start\n");
-		for(i=0;i<31;i++){
+		for(i=0;i<FREE_SIZE_BUCKETS;i++){
 			if(segregated_list[i]!=NULL){
 			printf("[%d]: ",i);
 				int seg_size=1;
@@ -534,6 +535,7 @@ void mm_free(void *bp)
  **********************************************************/
 void *mm_malloc(size_t size)
 {
+mm_check();
 	//print_seg(0);
 //	printf("IN MALLOC\n");
     size_t asize; /* adjusted block size */
@@ -608,7 +610,103 @@ void *mm_realloc(void *ptr, size_t size)
  * Return nonzero if the heap is consistant.
  *********************************************************/
 int mm_check(void){
-	//print_fl();
+
+/*	
+	if(segregated_list==NULL){
+		int i=0;
+		for(;i<FREE_SIZE_BUCKETS;i++){
+			if(segregated_list[i]==NULL){
+				continue;			
+			}		
+			void* bin_ptr = segregated_list[i];
+			while(GET_NEXT_FREE_BLK(bin_ptr)!=0){
+			
+
+			
+				int i=0;
+				for(;i<FREE_SIZE_BUCKETS;i++){
+					if(segregated_list[i]==NULL){
+						continue;			
+					}		
+					void* bin_ptr2 = segregated_list[i];
+					while(GET_NEXT_FREE_BLK(bin_ptr)!=0){
+				
+						//is every block in free list marked as free
+						
+						if(bin_ptr)
+						
+						
+						bin_ptr = GET_NEXT_FREE_BLK(bin_ptr);
+					}	
+			
+		
+		}
+			
+			
+			
+			bin_ptr = GET_NEXT_FREE_BLK(bin_ptr);
+			}	
+		
+	
+		}
+		
+	*/
+	/*if(G){
+	
+	
+	
+	}*/
+
+	if(segregated_list==NULL){
+		int i=0;
+		for(;i<FREE_SIZE_BUCKETS;i++){
+			if(segregated_list[i]==NULL){
+				continue;			
+			}		
+			void* bin_ptr = segregated_list[i];
+			while(GET_NEXT_FREE_BLK(bin_ptr)!=0){
+				
+				//is every block in free list marked as free
+				if(GET_ALLOC(HDRP(bin_ptr))!=0)
+				{
+					printf("Block not assigned properly\n");				
+					return 0;
+				}	
+				
+				if(GET_PREV_FREE_BLK(bin_ptr)!=0){
+					
+					if(GET_PREV_FREE_BLK(GET_NEXT_FREE_BLK(bin_ptr)) != bin_ptr){
+
+						printf("Previous block not coalesced properly\n");
+					};
+					if(GET_NEXT_FREE_BLK(GET_PREV_FREE_BLK(bin_ptr)) != bin_ptr){
+
+						printf("Previous block not coalesced properly\n");
+					};					
+					
+				}
+				/*
+				if(){
+				
+				}	*/	
+						
+				bin_ptr = GET_NEXT_FREE_BLK(bin_ptr);
+			}	
+
+			if(GET_ALLOC(HDRP(bin_ptr))!=0)
+			{
+				printf("Block not assigned properly\n");				
+				return 0;
+			}	
+			
+			
+		
+		}
+	
+	
+	}
+
+
 
 	return 1;
 }
