@@ -1,13 +1,19 @@
 /*
- * This implementation replicates the implicit list implementation
- * provided in the textbook
- * "Computer Systems - A Programmer's Perspective"
- * Blocks are never coalesced or reused.
- * Realloc is implemented directly using mm_malloc and mm_free.
- *
- * NOTE TO STUDENTS: Replace this header comment with your own header
- * comment that gives a high level description of your solution.
+ * This implementation uses segregated best fit lists. Our segregated
+ * lists are arranged in the following order:
+ * 	1. For small sizes for up to 128B, there is a distinct
+ *	   segregated list for each valid size.
+ *	2. For higher sizes, the segregated lists are arranged in ranges
+ *	   based on the powers of 2. For example, the lists are arranged 
+ * 
+ * Each segregated list is arranged in LIFO order with one optimization.
+ * The optimizing feature is that the free block with the biggest size
+ * in each segregated list is placed in the beginning of the list. This
+ * gives a significant improvement in throughput since we don't need to
+ * traverse through the entire segregated list.
+ * 
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -85,7 +91,7 @@ void * find_segregated_best_fit(size_t asize);
 void* heap_listp = NULL;
 
 /* ptr to the segregated list */
-#define FREE_SIZE_BUCKETS 31
+#define FREE_SIZE_BUCKETS 17
 void* segregated_list[FREE_SIZE_BUCKETS];
 /**********************************************************
  * mm_init
@@ -105,7 +111,7 @@ int mm_init(void)
 
 	//initialize your segregated lists
 	int i;
-	for(i = 0; i < 31; i++)
+	for(i = 0; i < FREE_SIZE_BUCKETS; i++)
 	{
 		segregated_list[i] = NULL;
 	}
@@ -256,8 +262,12 @@ int get_segregated_index(size_t size)
 		return 12;
 	else if (size < 8192)	//max block size 
 		return 13;
-	else	//for blocks of larger sizes
+	else if (size < 16384)	//max block size 
 		return 14;
+	else if (size < 32768)	//max block size 
+		return 15;
+	else	//for blocks of larger sizes
+		return 16;
 
 }
 
@@ -587,6 +597,38 @@ void *mm_realloc(void *ptr, size_t size)
 	if (ptr == NULL)
 		return (mm_malloc(size));
 
+	size_t asize;
+	/* Adjust block size to include overhead and alignment reqs. */
+    	if (size <= DSIZE)
+        	asize = 2 * DSIZE;
+    	else
+        	asize = DSIZE * ((size + (DSIZE) + (DSIZE-1))/ DSIZE);
+
+	if(GET_SIZE(HDRP(ptr)) >= asize)
+	{
+		place(ptr,size);	//splitting
+		return ptr;	
+	};
+
+/*
+	if(!GET_ALLOC(NEXT_BLKP(ptr)))
+	{
+		size_t merge_size = GET_SIZE(HDRP(ptr)) + GET_SIZE(HDRP(NEXT_BLKP(ptr)));		
+		printf("merge size is %d\n",merge_size);		
+
+		if(merge_size >= asize)
+		{
+			//remove the next ptr from the free list
+			remove_free_block(NEXT_BLKP(ptr));
+			
+			//PUT(HDRP(ptr), PACK(merge_size, 1));
+			//PUT(FTRP(ptr), PACK(merge_size, 1));
+			
+			place(ptr,asize);
+			return ptr;			
+		};		
+	};
+*/		
 	void *oldptr = ptr;
 	void *newptr;
 	size_t copySize;
