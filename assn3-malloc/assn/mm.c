@@ -80,10 +80,11 @@ void * find_segregated_best_fit(size_t asize);
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
-/* Get the address of the previous and next free block */
+/* Get the pointer of the address of the previous and next free block */
 #define LOCATION_PREV_FREE_BLKP(bp)	((char *)(bp))
 #define LOCATION_NEXT_FREE_BLKP(bp) ((char *)(bp) + WSIZE)
 
+/* Get the address of the next and previous free blocks */
 #define GET_NEXT_FREE_BLK(bp) GET((uintptr_t)(LOCATION_NEXT_FREE_BLKP(bp)))
 #define GET_PREV_FREE_BLK(bp) GET((uintptr_t)(LOCATION_PREV_FREE_BLKP(bp)))
 
@@ -119,43 +120,6 @@ int mm_init(void)
 	return 0;
 }
 
-void* print_seg(int type)
-{
-void* temp[31];
-	if(segregated_list!=NULL){
-		int i=0;
-		printf("Start\n");
-		for(i=0;i<FREE_SIZE_BUCKETS;i++){
-			if(segregated_list[i]!=NULL){
-			printf("[%d]: ",i);
-				int seg_size=1;
-				//printf("[%d]: ",i);
-				temp[i] = segregated_list[i]; 
-				while(GET_NEXT_FREE_BLK(temp[i])!=0){
-					if(type>0){printf("-[%d]-",GET_SIZE(HDRP(temp[i])));}
-					seg_size++;
-					temp[i] = GET_NEXT_FREE_BLK(temp[i]);
-				}
-				if(type>0){printf("-[%d]\n",GET_SIZE(HDRP(temp[i])));}
-				printf("size is: %d\n",seg_size);
-			}else{			
-				if(type==3){printf("NULL\n");}//else{printf("\n");}
-			}
-		
-		}
-		printf("End\n");	
-	}
-
-}
-
-print_ptr(void *bp){
-	if(bp!=NULL){
-		printf("prev is %d, size is %d, next is %d\n",GET_PREV_FREE_BLK(bp),GET_SIZE(HDRP(bp)),GET_NEXT_FREE_BLK(bp));
-	}else
-	{
-		printf("ptr is NULL\n");
-	}
-}
 
 /**********************************************************
  * coalesce
@@ -245,6 +209,8 @@ int get_segregated_index(size_t size)
 {
 	int index;
 	//calculate the index of the appropriate segregated list
+	
+
 	if(size <= 128)
 	{
 		index = (size/16) - 1;
@@ -428,27 +394,7 @@ void * find_fit(size_t asize, void * free_listp)
 		return free_listp;
 	else
 		return NULL;
-		
-	if((GET_NEXT_FREE_BLK(free_listp) == 0) && (asize <= GET_SIZE(HDRP(free_listp))))
-	{
-		return free_listp;
-	};
 
-	for (bp = free_listp; GET_NEXT_FREE_BLK(bp) != 0; bp = GET_NEXT_FREE_BLK(bp))
-	{
-		if (/*!GET_ALLOC(HDRP(bp)) &&*/ (asize <= GET_SIZE(HDRP(bp))))
-		{
-			return bp;
-		};
-	}
-
-	//for cases where there is only one block in the list
-	if(asize <= GET_SIZE(HDRP(bp)))
-	{
-		return bp;
-	};
-
-	return NULL;
 }
 
 /**********************************************************
@@ -518,8 +464,8 @@ void place(void* bp, size_t asize)
  **********************************************************/
 void mm_free(void *bp)
 {
-//	printf("IN FREE\n");
-//	printf("freeing block ptr %p\n",bp);
+	//	printf("IN FREE\n");
+	//	printf("freeing block ptr %p\n",bp);
 
 	if(bp == NULL){
 		return;
@@ -545,7 +491,7 @@ void mm_free(void *bp)
  **********************************************************/
 void *mm_malloc(size_t size)
 {
-mm_check();
+	//mm_check();
 	//print_seg(0);
 //	printf("IN MALLOC\n");
     size_t asize; /* adjusted block size */
@@ -646,109 +592,193 @@ void *mm_realloc(void *ptr, size_t size)
 	return newptr;
 }
 
+
+int exists_in_free_list(size_t address){
+	int i=0;
+	void* bin_ptr=segregated_list;
+	for(;i<FREE_SIZE_BUCKETS;i++)
+	{
+		while(GET_NEXT_FREE_BLK(bin_ptr)!=0)
+		{
+			if(address == bin_ptr){
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+/*
+Print function: We use this funtion to check the contents of out free lists
+Argument "type": will take 3 inputs: '0' '1' '2' they are are to show different levels of information that needs to be printed
+0 : will only show you how many elements are in the free list
+1 : will show you the size of every element and every sublist
+2 : will also show you the lists that have nothing in them
+*/
+void* print_seg(int type)
+{
+	void* temp[FREE_SIZE_BUCKETS];
+	
+	if(segregated_list!=NULL){
+		
+		int i=0;
+		
+		printf("Start\n");
+		/*
+		This for loop goes through the array of pointers that hold the buckets of different sized lists			
+		*/
+		for(i=0;i<FREE_SIZE_BUCKETS;i++){
+		
+			if(segregated_list[i]!=NULL){
+		
+				printf("[%d]: ",i);
+				int seg_size=1;
+				
+				temp[i] = segregated_list[i]; 
+				/*
+				This while loop goes through one index in our array of pointers and then applies the appropriate tests
+				*/		
+				while(GET_NEXT_FREE_BLK(temp[i])!=0){
+					
+					if(type>0){printf("-[%d]-",GET_SIZE(HDRP(temp[i])));}
+						seg_size++;
+						temp[i] = GET_NEXT_FREE_BLK(temp[i]);
+				}
+		
+				if(type>0){printf("-[%d]\n",GET_SIZE(HDRP(temp[i])));}
+				
+					printf("size is: %d\n",seg_size);
+				}
+				else
+				{			
+				
+					if(type==3)
+					{
+						printf("NULL\n");
+					}
+				}
+		}
+		printf("End\n");	
+	}
+
+}
+
+/*
+Used for debugging
+takes in a pointer to a block
+Prints out the size of a pointer, what is the previous block it's pointing to and the next pointer it is pointing to
+*/
+void print_ptr(void *bp){
+	
+	if(bp!=NULL){
+		printf("prev is %d, size is %d, next is %d\n",GET_PREV_FREE_BLK(bp),GET_SIZE(HDRP(bp)),GET_NEXT_FREE_BLK(bp));
+	}else
+	{
+		printf("ptr is NULL\n");
+	}
+}
+
+/*
+We have mixed all the tests in one big pass of our free lists
+The int test argment allows the user to print information about a specific test
+*/
+int free_list_checks(int test){
+
+	
+	if(segregated_list!=NULL){	printf("free list ptr is at %d\n",segregated_list);}
+
+		if(segregated_list==NULL){
+			/*
+			This for loop goes through the array of pointers that hold the buckets of different sized lists			
+			*/
+			int i=0;
+			for(;i<FREE_SIZE_BUCKETS;i++){
+				
+				if(segregated_list[i]==NULL){
+					continue;			
+				}
+						
+				void* bin_ptr = segregated_list[i];
+				/*
+				This while loop goes through one index in our array of pointers and then applies the appropriate tests
+				*/
+				while(GET_NEXT_FREE_BLK(bin_ptr)!=0){
+				
+					//is every block in free list marked as free
+					if(test==0 || test==1){
+						if(GET_ALLOC(HDRP(bin_ptr))!=0)
+						{
+							printf("Block not assigned properly\n");				
+							return 0;
+						}	
+					}
+					//are block contigous and if they exist on the free list
+					if(test==2 || test==0){
+					
+						if(GET_PREV_FREE_BLK(bin_ptr)!=0){
+					
+							if(GET_PREV_FREE_BLK(GET_NEXT_FREE_BLK(bin_ptr)) != bin_ptr){
+
+								printf("Previous block not coalesced properly\n");
+								return 0;
+							};
+							if(GET_NEXT_FREE_BLK(GET_PREV_FREE_BLK(bin_ptr)) != bin_ptr){
+
+								printf("Previous block not coalesced properly\n");
+								return 0;
+							};					
+						}
+					}		
+					
+					//Valid heap pointers
+					if(test==3 || test==0){
+					
+						if(bin_ptr<mem_heap_low() && bin_ptr > mem_heap_hi()){
+						
+							printf("Out of heap\n");
+							return 0;
+						}
+					}					
+					bin_ptr = GET_NEXT_FREE_BLK(bin_ptr);
+				}	
+				//is every block in free list marked as free
+				if(test == 1 || test==0){
+				
+					if(GET_ALLOC(HDRP(bin_ptr))!=0)
+					{
+						printf("Block not assigned properly\n");				
+						return 0;
+					}	
+				}	
+				//Valid heap pointers
+				if(test==3 || test==0){
+				
+					if(bin_ptr<mem_heap_low() && bin_ptr > mem_heap_hi()){
+					
+						printf("Out of heap\n");
+						return 0;
+					}
+				}					
+			}	
+		}
+	return 1;
+}
+
 /**********************************************************
  * mm_check
  * Check the consistency of the memory heap
  * Return nonzero if the heap is consistant.
+ * Change the test_type to run a speicfic test
  *********************************************************/
 int mm_check(void){
 
-/*	
-	if(segregated_list==NULL){
-		int i=0;
-		for(;i<FREE_SIZE_BUCKETS;i++){
-			if(segregated_list[i]==NULL){
-				continue;			
-			}		
-			void* bin_ptr = segregated_list[i];
-			while(GET_NEXT_FREE_BLK(bin_ptr)!=0){
-			
+	int test_type=0;
+	//0 : run all tests
+	//1 : every block in free list marked free/ free block test
+	//2 : contigous blocks test
+	//3 : heap consistency
+	//We havn't allocated any pointers on the heap ourselves so there is no need to test it
+	print_seg(1);
+	return free_list_checks(test_type);
 
-			
-				int i=0;
-				for(;i<FREE_SIZE_BUCKETS;i++){
-					if(segregated_list[i]==NULL){
-						continue;			
-					}		
-					void* bin_ptr2 = segregated_list[i];
-					while(GET_NEXT_FREE_BLK(bin_ptr)!=0){
-				
-						//is every block in free list marked as free
-						
-						if(bin_ptr)
-						
-						
-						bin_ptr = GET_NEXT_FREE_BLK(bin_ptr);
-					}	
-			
-		
-		}
-			
-			
-			
-			bin_ptr = GET_NEXT_FREE_BLK(bin_ptr);
-			}	
-		
-	
-		}
-		
-	*/
-	/*if(G){
-	
-	
-	
-	}*/
-
-	if(segregated_list==NULL){
-		int i=0;
-		for(;i<FREE_SIZE_BUCKETS;i++){
-			if(segregated_list[i]==NULL){
-				continue;			
-			}		
-			void* bin_ptr = segregated_list[i];
-			while(GET_NEXT_FREE_BLK(bin_ptr)!=0){
-				
-				//is every block in free list marked as free
-				if(GET_ALLOC(HDRP(bin_ptr))!=0)
-				{
-					printf("Block not assigned properly\n");				
-					return 0;
-				}	
-				
-				if(GET_PREV_FREE_BLK(bin_ptr)!=0){
-					
-					if(GET_PREV_FREE_BLK(GET_NEXT_FREE_BLK(bin_ptr)) != bin_ptr){
-
-						printf("Previous block not coalesced properly\n");
-					};
-					if(GET_NEXT_FREE_BLK(GET_PREV_FREE_BLK(bin_ptr)) != bin_ptr){
-
-						printf("Previous block not coalesced properly\n");
-					};					
-					
-				}
-				/*
-				if(){
-				
-				}	*/	
-						
-				bin_ptr = GET_NEXT_FREE_BLK(bin_ptr);
-			}	
-
-			if(GET_ALLOC(HDRP(bin_ptr))!=0)
-			{
-				printf("Block not assigned properly\n");				
-				return 0;
-			}	
-			
-			
-		
-		}
-	
-	
-	}
-
-
-
-	return 1;
 }
