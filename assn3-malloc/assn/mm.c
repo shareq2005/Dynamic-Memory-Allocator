@@ -112,6 +112,35 @@ int mm_init(void)
 	return 0;
 }
 
+void* print_seg(int type)
+{
+void* temp[31];
+	if(segregated_list!=NULL){
+		int i=0;
+		printf("Start\n");
+		for(i=0;i<31;i++){
+			if(segregated_list[i]!=NULL){
+			printf("[%d]: ",i);
+				int seg_size=1;
+				//printf("[%d]: ",i);
+				temp[i] = segregated_list[i]; 
+				while(GET_NEXT_FREE_BLK(temp[i])!=0){
+					if(type>0){printf("-[%d]-",GET_SIZE(HDRP(temp[i])));}
+					seg_size++;
+					temp[i] = GET_NEXT_FREE_BLK(temp[i]);
+				}
+				if(type>0){printf("-[%d]\n",GET_SIZE(HDRP(temp[i])));}
+				printf("size is: %d\n",seg_size);
+			}else{			
+				if(type==3){printf("NULL\n");}//else{printf("\n");}
+			}
+		
+		}
+		printf("End\n");	
+	}
+
+}
+
 print_ptr(void *bp){
 	if(bp!=NULL){
 		printf("prev is %d, size is %d, next is %d\n",GET_PREV_FREE_BLK(bp),GET_SIZE(HDRP(bp)),GET_NEXT_FREE_BLK(bp));
@@ -131,22 +160,22 @@ print_ptr(void *bp){
  **********************************************************/
 void *coalesce(void *bp)
 {
-	printf("IN COALESCE\n");
-	printf("coalescing block ptr %p\n",bp);
+	//printf("IN COALESCE\n");
+	//printf("coalescing block ptr %p\n",bp);
 	size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
 	size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
 	size_t size = GET_SIZE(HDRP(bp));
 	//printf("sizeof size_t %08p\n",sizeof(size_t));
 
 	if (prev_alloc && next_alloc) {       /* Case 1 */
-		printf("case 1\n");
+		//printf("case 1\n");
 		add_to_free_list(bp);	//add to the free list
 		//print_ptr(bp);
 		return bp;
 	}
 	else if (prev_alloc && !next_alloc) { /* Case 2 */
 
-		printf("case 2\n");
+		//printf("case 2\n");
 		size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
 
 		remove_free_block(NEXT_BLKP(bp)); //remove the free block from the free list
@@ -156,7 +185,7 @@ void *coalesce(void *bp)
 		return (bp);
 	}
 	else if (!prev_alloc && next_alloc) { /* Case 3 */
-		printf("case 3\n");
+		//printf("case 3\n");
 		size += GET_SIZE(HDRP(PREV_BLKP(bp)));
 
 		remove_free_block(PREV_BLKP(bp));
@@ -168,7 +197,7 @@ void *coalesce(void *bp)
 		return (PREV_BLKP(bp));
 	}
 	else {            /* Case 4 */
-		printf("case 4\n");
+		//printf("case 4\n");
 		size += GET_SIZE(HDRP(PREV_BLKP(bp)))+GET_SIZE(FTRP(NEXT_BLKP(bp)));
 		remove_free_block(PREV_BLKP(bp));
 		remove_free_block(NEXT_BLKP(bp));
@@ -238,8 +267,8 @@ int get_segregated_index(size_t size)
  **********************************************************/
 void add_to_free_list(void *bp)
 {
-	printf("IN ADD_TO_FREE_LIST\n");
-	printf("adding free block %p\n",bp);
+//	printf("IN ADD_TO_FREE_LIST\n");
+//	printf("adding free block %p\n",bp);
 
 	//get the size of the free block
 	size_t size = GET(HDRP(bp));
@@ -261,16 +290,44 @@ void add_to_free_list(void *bp)
 	}
 	else
 	{
-		//Set the next block of the new head as the previous head
-		PUT(LOCATION_NEXT_FREE_BLKP(bp),segregated_list[i]);
+		if(GET_SIZE(HDRP(segregated_list[i]))>GET_SIZE(HDRP(bp))){
 
-		//Set the previous block of the new head as NULL
-		PUT(LOCATION_PREV_FREE_BLKP(bp), 0);
+			if(GET_NEXT_FREE_BLK(segregated_list[i])!=0)
+			{
+		//	print_seg(1);
+//				void* sec_ptr = GET_NEXT_FREE_BLK(segregated_list[i]);
+				PUT(LOCATION_NEXT_FREE_BLKP(bp),GET_NEXT_FREE_BLK(segregated_list[i]));
+				PUT(GET_PREV_FREE_BLK(LOCATION_NEXT_FREE_BLKP(segregated_list[i])),bp);
+				PUT(LOCATION_NEXT_FREE_BLKP(segregated_list[i]),bp);				
+				PUT(LOCATION_PREV_FREE_BLKP(bp),segregated_list[i]);
+				//printf("test esfewfe\n");
+			//	print_ptr(bp);
+			//	print_ptr(segregated_list[i]);
+//print_seg(1);				
+				
+			}else{
+						//printf("test2\n");
+			//we only have 1 block in the list
+				PUT(LOCATION_NEXT_FREE_BLKP(segregated_list[i]),bp);
+				PUT(LOCATION_PREV_FREE_BLKP(bp),segregated_list[i]);
+				PUT(LOCATION_PREV_FREE_BLKP(segregated_list[i]),0);
+				PUT(LOCATION_NEXT_FREE_BLKP(bp),0);			
+			}
+			
+			
+		}else
+		{
+			//Set the next block of the new head as the previous head
+			PUT(LOCATION_NEXT_FREE_BLKP(bp),segregated_list[i]);
 
-		//Set the previous block of the previous head to the new head
-		PUT(LOCATION_PREV_FREE_BLKP(segregated_list[i]),bp);
+			//Set the previous block of the new head as NULL
+			PUT(LOCATION_PREV_FREE_BLKP(bp), 0);
 
-		segregated_list[i] = bp;
+			//Set the previous block of the previous head to the new head
+			PUT(LOCATION_PREV_FREE_BLKP(segregated_list[i]),bp);
+
+			segregated_list[i] = bp;
+		}
 	}
 }
 
@@ -281,9 +338,9 @@ void add_to_free_list(void *bp)
  **********************************************************/
 void remove_free_block(void *bp)
 {
-	printf("IN REMOVE_FREE_BLOCK\n");
-	printf("previous free blk is %p\n",GET_PREV_FREE_BLK(bp));
-	printf("next free blk is %p\n",GET_NEXT_FREE_BLK(bp));
+//	printf("IN REMOVE_FREE_BLOCK\n");
+//	printf("previous free blk is %p\n",GET_PREV_FREE_BLK(bp));
+//	printf("next free blk is %p\n",GET_NEXT_FREE_BLK(bp));
 
 	size_t size = GET_SIZE(HDRP(bp));	//get the size of the free block
 	int i = get_segregated_index(size);
@@ -355,8 +412,12 @@ void * find_fit(size_t asize, void * free_listp)
 	//check if your free list is empty
 	if(free_listp == NULL)
 		return NULL;
-
-
+	
+	if(asize <= GET_SIZE(HDRP(free_listp)))
+		return free_listp;
+	else
+		return NULL;
+		
 	if((GET_NEXT_FREE_BLK(free_listp) == 0) && (asize <= GET_SIZE(HDRP(free_listp))))
 	{
 		return free_listp;
@@ -446,8 +507,8 @@ void place(void* bp, size_t asize)
  **********************************************************/
 void mm_free(void *bp)
 {
-	printf("IN FREE\n");
-	printf("freeing block ptr %p\n",bp);
+//	printf("IN FREE\n");
+//	printf("freeing block ptr %p\n",bp);
 
 	if(bp == NULL){
 		return;
@@ -473,7 +534,8 @@ void mm_free(void *bp)
  **********************************************************/
 void *mm_malloc(size_t size)
 {
-	printf("IN MALLOC\n");
+	//print_seg(0);
+//	printf("IN MALLOC\n");
     size_t asize; /* adjusted block size */
     size_t extendsize; /* amount to extend heap if no fit */
     char * bp;
@@ -491,7 +553,7 @@ void *mm_malloc(size_t size)
     /* Search the free list for a fit */
     if ((bp = find_segregated_best_fit(asize)) != NULL) {
 
-    	printf("free size found, bp is %p\n",bp);
+    	//printf("free size found, bp is %p\n",bp);
     	remove_free_block(bp);
         place(bp, asize);
         return bp;
